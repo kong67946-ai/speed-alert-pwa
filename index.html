@@ -2,146 +2,155 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-<meta charset="UTF-8">
-<title>Radar Navigator Egypt</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Egypt Radar Navigator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
 
-<style>
-body{margin:0;background:#111;color:#fff;font-family:Arial}
-#map{height:60vh}
-.info{padding:10px;text-align:center}
-.alert{color:red;font-size:20px;font-weight:bold}
-</style>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    #info {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      z-index: 999;
+      text-align: center;
+    }
+  </style>
 </head>
 
 <body>
 
 <div id="map"></div>
+<div id="info">جاري تحديد موقعك…</div>
 
-<div class="info">
-  <div id="speed">🚗 السرعة: -- كم/س</div>
-  <div id="direction">🧭 الاتجاه: --</div>
-  <div id="radar">📡 أقرب رادار: --</div>
-  <div class="alert" id="alert"></div>
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* ================== رادارات مصر (عينة كبيرة) ================== */
-const radars = [
- {lat:30.0720,lng:31.3280,speed:80,road:"الدائري"},
- {lat:30.0500,lng:31.2100,speed:60,road:"الدائري"},
- {lat:29.9765,lng:30.9494,speed:80,road:"6 أكتوبر"},
- {lat:29.9900,lng:30.9300,speed:100,road:"6 أكتوبر"},
- {lat:30.8266,lng:30.8197,speed:100,road:"قاهرة اسكندرية"},
- {lat:30.7001,lng:30.6002,speed:120,road:"قاهرة اسكندرية"},
- {lat:31.2057,lng:29.9245,speed:80,road:"اسكندرية"},
- {lat:26.8206,lng:30.8025,speed:90,road:"الصعيد"}
+/* =========================
+   1️⃣ رادارات مصر (نموذج شامل)
+========================= */
+const RADARS = [
+  /* القاهرة */
+  {lat:30.0444,lng:31.2357,speed:60,name:"وسط البلد"},
+  {lat:30.0131,lng:31.2089,speed:90,name:"الدائري"},
+  {lat:30.0561,lng:31.2394,speed:80,name:"رمسيس"},
+  {lat:30.0870,lng:31.3301,speed:120,name:"مدينة نصر"},
+
+  /* الجيزة */
+  {lat:30.0060,lng:31.1900,speed:100,name:"محور 26 يوليو"},
+  {lat:29.9765,lng:31.2824,speed:100,name:"الأوتوستراد"},
+
+  /* اسكندرية */
+  {lat:31.2001,lng:29.9187,speed:80,name:"كورنيش اسكندرية"},
+  {lat:31.1200,lng:29.7600,speed:100,name:"طريق اسكندرية الصحراوي"},
+
+  /* القناة */
+  {lat:29.9668,lng:32.5498,speed:120,name:"طريق السويس"},
+  {lat:30.5877,lng:32.2654,speed:90,name:"الإسماعيلية"},
+
+  /* الدلتا */
+  {lat:30.7965,lng:31.0004,speed:90,name:"طنطا"},
+  {lat:30.5877,lng:31.5020,speed:90,name:"الزقازيق"},
+  {lat:31.0424,lng:31.3785,speed:90,name:"المنصورة"},
+
+  /* الصعيد */
+  {lat:27.1800,lng:31.1837,speed:90,name:"أسيوط"},
+  {lat:26.8206,lng:30.8025,speed:100,name:"المنيا"},
+  {lat:25.6872,lng:32.6396,speed:90,name:"الأقصر"},
+  {lat:24.0889,lng:32.8998,speed:90,name:"أسوان"}
 ];
 
-/* ================== الخريطة ================== */
-let map = L.map('map').setView([30.0444,31.2357], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+/* =========================
+   2️⃣ إنشاء الخريطة
+========================= */
+const map = L.map("map").setView([30.0444,31.2357], 7);
 
-radars.forEach(r=>{
- L.marker([r.lat,r.lng]).addTo(map)
- .bindPopup(`📡 رادار ${r.road}<br>🚗 ${r.speed} كم/س`);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19
+}).addTo(map);
+
+RADARS.forEach(r => {
+  L.marker([r.lat, r.lng])
+    .addTo(map)
+    .bindPopup(`رادار<br>السرعة: ${r.speed} كم/س`);
 });
 
-/* ================== الصوت ================== */
-function speak(txt,rate=1){
- let u=new SpeechSynthesisUtterance(txt);
- u.lang="ar-EG";u.rate=rate;
- speechSynthesis.speak(u);
+/* =========================
+   3️⃣ الصوت العربي
+========================= */
+function speak(text){
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = "ar-EG";
+  msg.rate = 1;
+  speechSynthesis.speak(msg);
 }
 
-/* ================== أدوات ================== */
-function dist(a,b,c,d){
- const R=6371;
- const dLat=(c-a)*Math.PI/180;
- const dLon=(d-b)*Math.PI/180;
- const x=Math.sin(dLat/2)**2+
- Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;
- return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
-}
-function dir(h){
- if(h==null)return "--";
- if(h<45)return "شمال";
- if(h<135)return "شرق";
- if(h<225)return "جنوب";
- return "غرب";
+/* =========================
+   4️⃣ حساب المسافة
+========================= */
+function distance(lat1, lon1, lat2, lon2){
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-/* ================== تسجيل المسار ================== */
-let track=[];
-let line=L.polyline([], {color:"red"}).addTo(map);
+/* =========================
+   5️⃣ GPS + سرعة + تنبيه
+========================= */
+let lastAlert = 0;
+const ALERT_DISTANCE = 1000; // 1 كم
 
-/* ================== التوجيه ================== */
-let routing=null;
-function startNav(a,b,c,d){
- if(routing)map.removeControl(routing);
- routing=L.Routing.control({
-  waypoints:[L.latLng(a,b),L.latLng(c,d)],
-  addWaypoints:false,
-  show:false,
-  router:L.Routing.osrmv1({
-   serviceUrl:"https://router.project-osrm.org/route/v1"
-  })
- }).addTo(map);
+navigator.geolocation.watchPosition(pos => {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const speed = (pos.coords.speed || 0) * 3.6;
 
- routing.on("routesfound",e=>{
-  e.routes[0].instructions.forEach(i=>{
-   speak(i.text,1);
+  map.setView([lat, lng], 15);
+
+  document.getElementById("info").innerText =
+    `سرعتك: ${speed.toFixed(0)} كم/س`;
+
+  RADARS.forEach(r => {
+    const d = distance(lat, lng, r.lat, r.lng);
+
+    if (d < ALERT_DISTANCE && Date.now() - lastAlert > 15000) {
+      lastAlert = Date.now();
+
+      let msg = `تحذير. رادار بعد ${Math.round(d)} متر. السرعة ${r.speed} كيلو`;
+      if (speed > r.speed) msg += ". انت متجاوز السرعة";
+
+      speak(msg);
+      alert(msg);
+    }
   });
- });
-}
 
-/* ================== GPS ================== */
-let warned=false;
-
-navigator.geolocation.watchPosition(p=>{
- let lat=p.coords.latitude;
- let lng=p.coords.longitude;
- let speed=p.coords.speed?p.coords.speed*3.6:0;
- let head=p.coords.heading;
-
- map.setView([lat,lng],16);
-
- document.getElementById("speed").innerText=`🚗 السرعة: ${speed.toFixed(0)} كم/س`;
- document.getElementById("direction").innerText=`🧭 الاتجاه: ${dir(head)}`;
-
- track.push([lat,lng]);
- line.setLatLngs(track);
-
- let near=null,min=999;
- radars.forEach(r=>{
-  let d=dist(lat,lng,r.lat,r.lng);
-  if(d<min){min=d;near=r;}
- });
-
- document.getElementById("radar").innerText=
- `📡 أقرب رادار: ${(min*1000).toFixed(0)} متر`;
-
- if(min<=1 && speed>near.speed && !warned){
-  warned=true;
-  document.getElementById("alert").innerText="⚠️ رادار وسرعة زيادة";
-  speak("خد بالك رادار قدامك");
-  speak("السرعة أعلى من المسموح");
-  speak("اهدِ السرعة فوراً");
-  speak("احتمال مخالفة");
-
-  startNav(lat,lng,near.lat,near.lng);
- }
-
- if(min>1){warned=false;document.getElementById("alert").innerText="";}
-
-},()=>alert("فعّل GPS"),{enableHighAccuracy:true});
+},{enableHighAccuracy:true});
 </script>
 
 </body>
