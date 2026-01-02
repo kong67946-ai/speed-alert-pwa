@@ -3,127 +3,145 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Speed Alert Navigator</title>
+<title>Radar Navigator Egypt</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#16a34a">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
 
 <style>
-body{margin:0;background:#020617;color:#fff;font-family:Arial}
-#top{padding:10px;background:#020617}
-#speed{font-size:42px;font-weight:bold}
-#alert{display:none;background:#dc2626;padding:8px;font-size:18px}
-#map{height:65vh}
-#controls{padding:10px}
-button{padding:10px 16px;font-size:16px;border:0;border-radius:6px;background:#16a34a;color:#fff}
+body{margin:0;background:#111;color:#fff;font-family:Arial}
+#map{height:60vh}
+.info{padding:10px;text-align:center}
+.alert{color:red;font-size:20px;font-weight:bold}
 </style>
 </head>
 
 <body>
 
-<div id="top">
-السرعة الحالية
-<div id="speed">0</div>
-</div>
-
-<div id="alert">⚠️ تجاوزت السرعة المسموحة</div>
 <div id="map"></div>
 
-<div id="controls">
-<button onclick="start()">تشغيل التتبع</button>
+<div class="info">
+  <div id="speed">🚗 السرعة: -- كم/س</div>
+  <div id="direction">🧭 الاتجاه: --</div>
+  <div id="radar">📡 أقرب رادار: --</div>
+  <div class="alert" id="alert"></div>
 </div>
 
-<audio id="beep">
-<source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">
-</audio>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
-const SPEED_LIMIT = 60;
-const RADAR_RADIUS = 1000;
+/* ================== رادارات مصر (عينة كبيرة) ================== */
+const radars = [
+ {lat:30.0720,lng:31.3280,speed:80,road:"الدائري"},
+ {lat:30.0500,lng:31.2100,speed:60,road:"الدائري"},
+ {lat:29.9765,lng:30.9494,speed:80,road:"6 أكتوبر"},
+ {lat:29.9900,lng:30.9300,speed:100,road:"6 أكتوبر"},
+ {lat:30.8266,lng:30.8197,speed:100,road:"قاهرة اسكندرية"},
+ {lat:30.7001,lng:30.6002,speed:120,road:"قاهرة اسكندرية"},
+ {lat:31.2057,lng:29.9245,speed:80,road:"اسكندرية"},
+ {lat:26.8206,lng:30.8025,speed:90,road:"الصعيد"}
+];
 
-let map = L.map("map").setView([30.0444,31.2357],14);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+/* ================== الخريطة ================== */
+let map = L.map('map').setView([30.0444,31.2357], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let marker, radarCircle, alerted=false;
-
-const radarIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/483/483361.png",
-  iconSize:[32,32]
+radars.forEach(r=>{
+ L.marker([r.lat,r.lng]).addTo(map)
+ .bindPopup(`📡 رادار ${r.road}<br>🚗 ${r.speed} كم/س`);
 });
 
-function speak(t){
- let u=new SpeechSynthesisUtterance(t);
- u.lang="ar-EG";
+/* ================== الصوت ================== */
+function speak(txt,rate=1){
+ let u=new SpeechSynthesisUtterance(txt);
+ u.lang="ar-EG";u.rate=rate;
  speechSynthesis.speak(u);
 }
 
-function loadRadars(lat,lng){
- let url=`https://overpass-api.de/api/interpreter?data=
- [out:json];
- node["highway"="speed_camera"](around:${RADAR_RADIUS},${lat},${lng});
- out;`;
- fetch(url)
- .then(r=>r.json())
- .then(d=>{
-  d.elements.forEach(c=>{
-   L.marker([c.lat,c.lon],{icon:radarIcon}).addTo(map);
+/* ================== أدوات ================== */
+function dist(a,b,c,d){
+ const R=6371;
+ const dLat=(c-a)*Math.PI/180;
+ const dLon=(d-b)*Math.PI/180;
+ const x=Math.sin(dLat/2)**2+
+ Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLon/2)**2;
+ return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function dir(h){
+ if(h==null)return "--";
+ if(h<45)return "شمال";
+ if(h<135)return "شرق";
+ if(h<225)return "جنوب";
+ return "غرب";
+}
+
+/* ================== تسجيل المسار ================== */
+let track=[];
+let line=L.polyline([], {color:"red"}).addTo(map);
+
+/* ================== التوجيه ================== */
+let routing=null;
+function startNav(a,b,c,d){
+ if(routing)map.removeControl(routing);
+ routing=L.Routing.control({
+  waypoints:[L.latLng(a,b),L.latLng(c,d)],
+  addWaypoints:false,
+  show:false,
+  router:L.Routing.osrmv1({
+   serviceUrl:"https://router.project-osrm.org/route/v1"
+  })
+ }).addTo(map);
+
+ routing.on("routesfound",e=>{
+  e.routes[0].instructions.forEach(i=>{
+   speak(i.text,1);
   });
  });
 }
 
-function drawRoute(lat,lng){
- let destLat=lat+0.01;
- let destLng=lng+0.01;
- fetch(`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${destLng},${destLat}?overview=full&geometries=geojson`)
- .then(r=>r.json())
- .then(d=>{
-  let coords=d.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
-  L.polyline(coords,{color:"blue"}).addTo(map);
+/* ================== GPS ================== */
+let warned=false;
+
+navigator.geolocation.watchPosition(p=>{
+ let lat=p.coords.latitude;
+ let lng=p.coords.longitude;
+ let speed=p.coords.speed?p.coords.speed*3.6:0;
+ let head=p.coords.heading;
+
+ map.setView([lat,lng],16);
+
+ document.getElementById("speed").innerText=`🚗 السرعة: ${speed.toFixed(0)} كم/س`;
+ document.getElementById("direction").innerText=`🧭 الاتجاه: ${dir(head)}`;
+
+ track.push([lat,lng]);
+ line.setLatLngs(track);
+
+ let near=null,min=999;
+ radars.forEach(r=>{
+  let d=dist(lat,lng,r.lat,r.lng);
+  if(d<min){min=d;near=r;}
  });
-}
 
-function start(){
- if(!navigator.geolocation){alert("GPS غير مدعوم");return;}
- navigator.geolocation.watchPosition(p=>{
-  let lat=p.coords.latitude;
-  let lng=p.coords.longitude;
-  let speed=Math.round((p.coords.speed||0)*3.6);
-  document.getElementById("speed").innerText=speed;
+ document.getElementById("radar").innerText=
+ `📡 أقرب رادار: ${(min*1000).toFixed(0)} متر`;
 
-  if(!marker){
-    marker=L.marker([lat,lng]).addTo(map);
-    radarCircle=L.circle([lat,lng],{radius:RADAR_RADIUS,color:"red"}).addTo(map);
-    loadRadars(lat,lng);
-    drawRoute(lat,lng);
-  }else{
-    marker.setLatLng([lat,lng]);
-    radarCircle.setLatLng([lat,lng]);
-  }
+ if(min<=1 && speed>near.speed && !warned){
+  warned=true;
+  document.getElementById("alert").innerText="⚠️ رادار وسرعة زيادة";
+  speak("خد بالك رادار قدامك");
+  speak("السرعة أعلى من المسموح");
+  speak("اهدِ السرعة فوراً");
+  speak("احتمال مخالفة");
 
-  map.setView([lat,lng],16);
+  startNav(lat,lng,near.lat,near.lng);
+ }
 
-  if(speed>SPEED_LIMIT){
-    if(!alerted){
-      document.getElementById("alert").style.display="block";
-      document.getElementById("beep").play();
-      speak("انت متجاوز السرعة");
-      alerted=true;
-    }
-  }else{
-    document.getElementById("alert").style.display="none";
-    alerted=false;
-  }
+ if(min>1){warned=false;document.getElementById("alert").innerText="";}
 
- },e=>alert("فعّل GPS"),{enableHighAccuracy:true});
-}
-
-if("serviceWorker" in navigator){
- navigator.serviceWorker.register("sw.js");
-}
+},()=>alert("فعّل GPS"),{enableHighAccuracy:true});
 </script>
 
 </body>
