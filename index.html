@@ -8,8 +8,12 @@
   <!-- Manifest -->
   <link rel="manifest" href="manifest.json">
 
-  <style>
-    body {
+ <link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>   body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #0f172a;
@@ -51,58 +55,95 @@
     }
   </style>
 </head>
+<script>
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      function (position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
+        const map = L.map("map").setView([lat, lng], 16);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+        }).addTo(map);
+
+        L.marker([lat, lng])
+          .addTo(map)
+          .bindPopup("📍 موقعك الحالي")
+          .openPopup();
+      },
+      function () {
+        alert("مش قادر أحدد موقعك");
+      }
+    );
+  } else {
+    alert("الموقع غير مدعوم");
+  }
+</script>
 <body>
-
+  
+<div id="map" style="height: 300px; margin: 15px;"></div>
   <h1>🚗 Speed Alert</h1>
 
-  <div class="box">
-    <div>سرعتك الحالية</div>
-    <div class="speed" id="speed">0</div>
-    <div>كم/س</div>
-  </div>
+  <div class=abox">
+    
+    <div>سرعتك الحالية<
+    
+    <div =ass="sp ee= id="sppeed">0<
+    
+    <d/v>كم/س<
+  v>
+  <
 
-  <div class="box">
-    <div>السرعة المسموح بها</div>
-    <div class="limit" id="limit">60 كم/س</div>
-    <div class="warning" id="warning"></div>
-  </div>
+  >
+   <div =ass=""
+    
+    <div>السرعة المسموح بها<
+    
+    <div =ass="li mi= id="liimi ">/0 كم/س<
+    
+    <div =ass="warn in= id="warnning"><
+  v>
+  <
 
-  <button onclick="startTracking()">ابدأ التتبع</button>
+  >
+  <buutton on=iick="startTracknng()">ابدأ التتبع</bu
 
-  <script>
-    const speedEl = document.getElementById("speed");
-    const warningEl = document.getElementById("warning");
+  >
+  <scc
+        c nst spe = l = docu.ent.getElementById("spe;
+        c nst warni = l = docu.ent.getElementById("warni;
 
-    const SPEED_LIMIT = 60; // تقدر تغيرها بعدين حسب المنطقة
+        c nst SPEED_L = T ; 60; // تقدر تغيرها بعدين حسب الم
 
-    function startTracking() {
-      if (!navigator.geolocation) {
-        alert("GPS غير مدعوم");
-        return;
-      }
+        func ion startTracki g
+          !f (!navig.tor.geolocat o
+            alert("GPS غير مدع;
+            re;
+       
 
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          const speedMS = pos.coords.speed || 0;
-          const speedKMH = Math.round(speedMS * 3.6);
-          speedEl.textContent = speedKMH;
+          navig.tor.geoloca.ion.watchPosit
+            ( =>  
+              c nst spe = S =.pos.co.rds.s ||  ;
+              c nst spee = H = .ath.round(spe * S * ;
+              spe.dEl.textCon = t = spee;
 
-          if (speedKMH > SPEED_LIMIT) {
-            warningEl.textContent = "⚠️ انت متجاوز السرعة!";
-            speak("خد بالك، أنت متجاوز السرعة");
-          } else {
-            warningEl.textContent = "";
-          }
-        },
-        (err) => {
-          alert("شغّل GPS واسمح بالموقع");
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000
-        }
-      );
+              if (spee > H > SPEED_LI I
+                warni.gEl.textCon = t = "⚠️ انت متجاوز السر;
+                speak("خد بالك، أنت متجاوز السر;
+              }  l
+                warni.gEl.textCon = t ;
+           
+         ,
+            ( => =
+             alert("شغّل GPS واسمح بالموق;
+         ,
+         
+             enableHighAccur: y: t,
+             maximum: e: 1
+         
+       ;
     }
 
     function speak(text) {
