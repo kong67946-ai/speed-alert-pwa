@@ -48,37 +48,31 @@
 
 <script>
 /* =========================
-   1️⃣ رادارات مصر (نموذج شامل)
+   1️⃣ رادارات مصر
 ========================= */
 const RADARS = [
-  /* القاهرة */
-  {lat:30.0444,lng:31.2357,speed:60,name:"وسط البلد"},
-  {lat:30.0131,lng:31.2089,speed:90,name:"الدائري"},
-  {lat:30.0561,lng:31.2394,speed:80,name:"رمسيس"},
-  {lat:30.0870,lng:31.3301,speed:120,name:"مدينة نصر"},
+  {lat:30.0444,lng:31.2357,speed:60,name:"وسط البلد",alerted:false},
+  {lat:30.0131,lng:31.2089,speed:90,name:"الدائري",alerted:false},
+  {lat:30.0561,lng:31.2394,speed:80,name:"رمسيس",alerted:false},
+  {lat:30.0870,lng:31.3301,speed:120,name:"مدينة نصر",alerted:false},
 
-  /* الجيزة */
-  {lat:30.0060,lng:31.1900,speed:100,name:"محور 26 يوليو"},
-  {lat:29.9765,lng:31.2824,speed:100,name:"الأوتوستراد"},
+  {lat:30.0060,lng:31.1900,speed:100,name:"محور 26 يوليو",alerted:false},
+  {lat:29.9765,lng:31.2824,speed:100,name:"الأوتوستراد",alerted:false},
 
-  /* اسكندرية */
-  {lat:31.2001,lng:29.9187,speed:80,name:"كورنيش اسكندرية"},
-  {lat:31.1200,lng:29.7600,speed:100,name:"طريق اسكندرية الصحراوي"},
+  {lat:31.2001,lng:29.9187,speed:80,name:"كورنيش اسكندرية",alerted:false},
+  {lat:31.1200,lng:29.7600,speed:100,name:"طريق اسكندرية الصحراوي",alerted:false},
 
-  /* القناة */
-  {lat:29.9668,lng:32.5498,speed:120,name:"طريق السويس"},
-  {lat:30.5877,lng:32.2654,speed:90,name:"الإسماعيلية"},
+  {lat:29.9668,lng:32.5498,speed:120,name:"طريق السويس",alerted:false},
+  {lat:30.5877,lng:32.2654,speed:90,name:"الإسماعيلية",alerted:false},
 
-  /* الدلتا */
-  {lat:30.7965,lng:31.0004,speed:90,name:"طنطا"},
-  {lat:30.5877,lng:31.5020,speed:90,name:"الزقازيق"},
-  {lat:31.0424,lng:31.3785,speed:90,name:"المنصورة"},
+  {lat:30.7965,lng:31.0004,speed:90,name:"طنطا",alerted:false},
+  {lat:30.5877,lng:31.5020,speed:90,name:"الزقازيق",alerted:false},
+  {lat:31.0424,lng:31.3785,speed:90,name:"المنصورة",alerted:false},
 
-  /* الصعيد */
-  {lat:27.1800,lng:31.1837,speed:90,name:"أسيوط"},
-  {lat:26.8206,lng:30.8025,speed:100,name:"المنيا"},
-  {lat:25.6872,lng:32.6396,speed:90,name:"الأقصر"},
-  {lat:24.0889,lng:32.8998,speed:90,name:"أسوان"}
+  {lat:27.1800,lng:31.1837,speed:90,name:"أسيوط",alerted:false},
+  {lat:26.8206,lng:30.8025,speed:100,name:"المنيا",alerted:false},
+  {lat:25.6872,lng:32.6396,speed:90,name:"الأقصر",alerted:false},
+  {lat:24.0889,lng:32.8998,speed:90,name:"أسوان",alerted:false}
 ];
 
 /* =========================
@@ -95,6 +89,14 @@ RADARS.forEach(r => {
     .addTo(map)
     .bindPopup(`رادار<br>السرعة: ${r.speed} كم/س`);
 });
+
+/* ✅ Marker لمكانك */
+const userMarker = L.circleMarker([0,0], {
+  radius: 8,
+  color: "blue",
+  fillColor: "blue",
+  fillOpacity: 1
+}).addTo(map);
 
 /* =========================
    3️⃣ الصوت العربي
@@ -123,8 +125,7 @@ function distance(lat1, lon1, lat2, lon2){
 /* =========================
    5️⃣ GPS + سرعة + تنبيه
 ========================= */
-let lastAlert = 0;
-const ALERT_DISTANCE = 1000; // 1 كم
+const ALERT_DISTANCE = 1000;
 
 navigator.geolocation.watchPosition(pos => {
   const lat = pos.coords.latitude;
@@ -132,6 +133,7 @@ navigator.geolocation.watchPosition(pos => {
   const speed = (pos.coords.speed || 0) * 3.6;
 
   map.setView([lat, lng], 15);
+  userMarker.setLatLng([lat, lng]);
 
   document.getElementById("info").innerText =
     `سرعتك: ${speed.toFixed(0)} كم/س`;
@@ -139,14 +141,17 @@ navigator.geolocation.watchPosition(pos => {
   RADARS.forEach(r => {
     const d = distance(lat, lng, r.lat, r.lng);
 
-    if (d < ALERT_DISTANCE && Date.now() - lastAlert > 15000) {
-      lastAlert = Date.now();
+    if (d < ALERT_DISTANCE && !r.alerted) {
+      r.alerted = true;
 
       let msg = `تحذير. رادار بعد ${Math.round(d)} متر. السرعة ${r.speed} كيلو`;
       if (speed > r.speed) msg += ". انت متجاوز السرعة";
 
       speak(msg);
-      alert(msg);
+    }
+
+    if (d > ALERT_DISTANCE + 300) {
+      r.alerted = false;
     }
   });
 
