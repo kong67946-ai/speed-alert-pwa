@@ -30,11 +30,21 @@
       transform: translateX(-50%);
       background: rgba(0,0,0,0.85);
       color: #fff;
-      padding: 10px 16px;
-      border-radius: 12px;
+      padding: 12px 18px;
+      border-radius: 14px;
       font-size: 14px;
       z-index: 999;
       text-align: center;
+      min-width: 260px;
+    }
+    #startBtn {
+      padding: 10px 16px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background: #00c853;
+      color: #fff;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -42,7 +52,10 @@
 <body>
 
 <div id="map"></div>
-<div id="info">جاري تحديد موقعك…</div>
+
+<div id="info">
+  <button id="startBtn" onclick="startTracking()">📍 اضغط لبدء التتبع</button>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -55,28 +68,14 @@ const RADARS = [
   {lat:30.0131,lng:31.2089,speed:90,name:"الدائري",alerted:false},
   {lat:30.0561,lng:31.2394,speed:80,name:"رمسيس",alerted:false},
   {lat:30.0870,lng:31.3301,speed:120,name:"مدينة نصر",alerted:false},
-
   {lat:30.0060,lng:31.1900,speed:100,name:"محور 26 يوليو",alerted:false},
   {lat:29.9765,lng:31.2824,speed:100,name:"الأوتوستراد",alerted:false},
-
   {lat:31.2001,lng:29.9187,speed:80,name:"كورنيش اسكندرية",alerted:false},
-  {lat:31.1200,lng:29.7600,speed:100,name:"طريق اسكندرية الصحراوي",alerted:false},
-
-  {lat:29.9668,lng:32.5498,speed:120,name:"طريق السويس",alerted:false},
-  {lat:30.5877,lng:32.2654,speed:90,name:"الإسماعيلية",alerted:false},
-
-  {lat:30.7965,lng:31.0004,speed:90,name:"طنطا",alerted:false},
-  {lat:30.5877,lng:31.5020,speed:90,name:"الزقازيق",alerted:false},
-  {lat:31.0424,lng:31.3785,speed:90,name:"المنصورة",alerted:false},
-
-  {lat:27.1800,lng:31.1837,speed:90,name:"أسيوط",alerted:false},
-  {lat:26.8206,lng:30.8025,speed:100,name:"المنيا",alerted:false},
-  {lat:25.6872,lng:32.6396,speed:90,name:"الأقصر",alerted:false},
-  {lat:24.0889,lng:32.8998,speed:90,name:"أسوان",alerted:false}
+  {lat:29.9668,lng:32.5498,speed:120,name:"طريق السويس",alerted:false}
 ];
 
 /* =========================
-   2️⃣ إنشاء الخريطة
+   2️⃣ الخريطة
 ========================= */
 const map = L.map("map").setView([30.0444,31.2357], 7);
 
@@ -90,7 +89,7 @@ RADARS.forEach(r => {
     .bindPopup(`رادار<br>السرعة: ${r.speed} كم/س`);
 });
 
-/* ✅ Marker لمكانك */
+/* Marker لمكانك */
 const userMarker = L.circleMarker([0,0], {
   radius: 8,
   color: "blue",
@@ -123,11 +122,29 @@ function distance(lat1, lon1, lat2, lon2){
 }
 
 /* =========================
-   5️⃣ GPS + سرعة + تنبيه
+   5️⃣ تشغيل التتبع بالزر
 ========================= */
 const ALERT_DISTANCE = 1000;
+let watchId = null;
 
-navigator.geolocation.watchPosition(pos => {
+function startTracking(){
+  document.getElementById("info").innerText = "📡 جاري تحديد موقعك...";
+
+  navigator.geolocation.getCurrentPosition(
+    () => {
+      watchId = navigator.geolocation.watchPosition(onLocation, onError, {
+        enableHighAccuracy: true
+      });
+    },
+    () => {
+      document.getElementById("info").innerHTML =
+        `<button id="startBtn" onclick="startTracking()">📍 اضغط لبدء التتبع</button>`;
+      alert("تأكد من تشغيل GPS والسماح بالموقع");
+    }
+  );
+}
+
+function onLocation(pos){
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   const speed = (pos.coords.speed || 0) * 3.6;
@@ -136,26 +153,25 @@ navigator.geolocation.watchPosition(pos => {
   userMarker.setLatLng([lat, lng]);
 
   document.getElementById("info").innerText =
-    `سرعتك: ${speed.toFixed(0)} كم/س`;
+    `🚗 سرعتك: ${speed.toFixed(0)} كم/س`;
 
   RADARS.forEach(r => {
     const d = distance(lat, lng, r.lat, r.lng);
 
     if (d < ALERT_DISTANCE && !r.alerted) {
       r.alerted = true;
-
-      let msg = `تحذير. رادار بعد ${Math.round(d)} متر. السرعة ${r.speed} كيلو`;
+      let msg = `تحذير رادار بعد ${Math.round(d)} متر. السرعة ${r.speed} كيلو`;
       if (speed > r.speed) msg += ". انت متجاوز السرعة";
-
       speak(msg);
     }
 
-    if (d > ALERT_DISTANCE + 300) {
-      r.alerted = false;
-    }
+    if (d > ALERT_DISTANCE + 300) r.alerted = false;
   });
+}
 
-},{enableHighAccuracy:true});
+function onError(){
+  alert("حصل خطأ في تحديد الموقع");
+}
 </script>
 
 </body>
