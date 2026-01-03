@@ -1,14 +1,14 @@
 
 {
-  "name": "Radar Navigator Egypt",
+  "name": "RadarEG",
   "short_name": "RadarEG",
-  "start_url": "./index.html",
+  "description": "GPS speed alert with radar warning",
+  "start_url": "/speed-alert-pwa/index.html",
+  "scope": "/speed-alert-pwa/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "portrait",
-  "lang": "ar",
-  "scope": "./",
   "icons": [
     {
       "src": "icon-192.png",
