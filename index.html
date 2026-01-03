@@ -89,7 +89,6 @@ RADARS.forEach(r => {
     .bindPopup(`رادار<br>السرعة: ${r.speed} كم/س`);
 });
 
-/* Marker لمكانك */
 const userMarker = L.circleMarker([0,0], {
   radius: 8,
   color: "blue",
@@ -122,7 +121,7 @@ function distance(lat1, lon1, lat2, lon2){
 }
 
 /* =========================
-   5️⃣ تشغيل التتبع بالزر
+   5️⃣ تشغيل التتبع
 ========================= */
 const ALERT_DISTANCE = 1000;
 let watchId = null;
@@ -171,6 +170,17 @@ function onLocation(pos){
 
 function onError(){
   alert("حصل خطأ في تحديد الموقع");
+}
+</script>
+
+<!-- ✅ تسجيل Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./pwabuilder-sw.js')
+      .then(() => console.log('Service Worker Registered'))
+      .catch(err => console.log('Service Worker Error', err));
+  });
 }
 </script>
 
